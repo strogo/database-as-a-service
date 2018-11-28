@@ -264,7 +264,7 @@ def make_databases_backup(self):
     return
 
 
-def remove_snapshot_backup(snapshot, force=False):
+def remove_snapshot_backup(snapshot, provider=None, force=False):
     snapshots = snapshot.group.backups.all() if snapshot.group else [snapshot]
     for snapshot in snapshots:
 
@@ -273,7 +273,8 @@ def remove_snapshot_backup(snapshot, force=False):
 
         LOG.info("Removing backup for {}".format(snapshot))
 
-        provider = VolumeProviderBase(snapshot.instance)
+        if not provider:
+            provider = VolumeProviderBase(snapshot.instance)
         removed = provider.delete_snapshot(snapshot, force=force)
         if removed:
             snapshot.purge_at = datetime.now()
