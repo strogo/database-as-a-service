@@ -27,6 +27,7 @@ from logical.forms.database import DatabaseDetailsForm
 from logical.models import Credential, Database, Project
 from logical.validators import (check_is_database_enabled, check_is_database_dead,
                                 ParameterValidator)
+from workflow.steps.util.host_provider import Provider
 
 
 LOG = logging.getLogger(__name__)
@@ -1274,6 +1275,18 @@ def database_migrate(request, context, database):
             environment = get_object_or_404(
                 Environment, pk=request.POST.get('new_environment')
             )
+            offering = get_object_or_404(
+                Offering, pk=request.POST.get('new_offering')
+            )
+            if environment not in offering.environments.all():
+                messages.add_message(
+                    request, messages.ERROR,
+                    "There is no offering {} to {} environment".format(
+                        offering, environment
+                    )
+                )
+                return
+
             hosts_zones = OrderedDict()
             data = json.loads(request.POST.get('hosts_zones'))
             for host_id, zone in data.items():
@@ -1285,11 +1298,10 @@ def database_migrate(request, context, database):
                 )
             else:
                 TaskRegister.database_migrate(
-                    database, environment, request.user, hosts_zones
+                    database, environment, offering, request.user, hosts_zones
                 )
         return
 
-    from workflow.steps.util.host_provider import Provider
     hosts = set()
     zones = set()
     instances = database.infra.instances.all().order_by('shard', 'id')
@@ -1314,6 +1326,7 @@ def database_migrate(request, context, database):
         for env in group.environments.all():
             context["environments"].add(env)
     context["current_environment"] = environment
+    context["current_offering"] = database.infra.offering
 
     from maintenance.models import HostMigrate
     migrates = HostMigrate.objects.filter(host__in=hosts)
@@ -1327,7 +1340,6 @@ def database_migrate(request, context, database):
 def zones_for_environment(request, database_id, environment_id):
     database = get_object_or_404(Database, pk=database_id)
     environment = get_object_or_404(Environment, pk=environment_id)
-    from workflow.steps.util.host_provider import Provider
     hp = Provider(database.infra.instances.first(), environment)
     zones = sorted(hp.list_zones())
     return HttpResponse(
