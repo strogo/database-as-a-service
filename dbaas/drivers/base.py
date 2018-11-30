@@ -40,6 +40,10 @@ class BaseDriver(object):
         return sum(map(lambda m: getattr(m, field_lookup) or 0, masters))
 
     @property
+    def ports(self):
+        raise NotImplementedError()
+
+    @property
     def replication_topology(self):
         return self.databaseinfra.plan.replication_topology
 
@@ -215,13 +219,18 @@ class BaseDriver(object):
             driver_name) else None for instance in self.databaseinfra.instances.all()]
         return filter(None, instances)
 
-    def get_master_instance(self, ):
+    def get_master_instance(self, ignore_instance=None):
         instances = self.get_database_instances()
-
+        if ignore_instance:
+            instances.remove(ignore_instance)
         for instance in instances:
             try:
                 if self.check_instance_is_master(instance):
                     return instance
+                if instance.hostname.future_host:
+                    instance.address = instance.hostname.future_host.address
+                    if self.check_instance_is_master(instance):
+                        return instance
             except ConnectionError:
                 continue
 
@@ -360,6 +369,18 @@ class BaseDriver(object):
 
     def set_replication_not_require_ssl(self, instance=None, ca_path=None):
         raise NotImplementedError()
+
+    def create_metric_collector_user(self, username, password):
+        raise NotImplementedError
+
+    def remove_metric_collector_user(self, username):
+        raise NotImplementedError
+
+    def get_metric_collector_user(self, username):
+        return username
+
+    def get_metric_collector_password(self, password):
+        return password
 
 
 class DatabaseStatus(object):

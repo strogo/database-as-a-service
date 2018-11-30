@@ -26,6 +26,10 @@ class Redis(BaseDriver):
     default_port = 6379
 
     @property
+    def ports(self):
+        return (6379,)
+
+    @property
     def instances_filtered(self):
         return self.databaseinfra.instances.filter(
             instance_type=Instance.REDIS, is_active=True
@@ -352,8 +356,23 @@ class Redis(BaseDriver):
     def build_new_infra_auth(self):
         return '', make_db_random_password(), ''
 
+    def create_metric_collector_user(self, username, password):
+        pass
+
+    def remove_metric_collector_user(self, username):
+        pass
+
+    def get_metric_collector_user(self, username):
+        return ""
+
+    def get_metric_collector_password(self, password):
+        return self.databaseinfra.password
 
 class RedisSentinel(Redis):
+
+    @property
+    def ports(self):
+        return (6379, 26379)
 
     @property
     def instances_filtered(self):
@@ -553,6 +572,10 @@ class RedisSentinel(Redis):
 class RedisCluster(Redis):
 
     @property
+    def ports(self):
+        return (6379, 16379)
+
+    @property
     def uri_instance_type(self):
         return 'cluster'
 
@@ -666,6 +689,10 @@ class RedisCluster(Redis):
             try:
                 if self.check_instance_is_master(instance):
                     masters.append(instance)
+                if instance.hostname.future_host:
+                    instance.address = instance.hostname.future_host.address
+                    if self.check_instance_is_master(instance):
+                        masters.append(instance)
             except ConnectionError:
                 continue
 

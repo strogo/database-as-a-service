@@ -436,6 +436,8 @@ class SetSlave(DatabaseStep):
 
     @property
     def master(self):
+        if self.host_migrate:
+            return self.infra.get_driver().get_master_instance(self.instance)
         return self.infra.get_driver().get_master_instance()
 
     def do(self):
@@ -529,7 +531,7 @@ class Create(DatabaseStep):
         creating.database = database
         creating.save()
 
-        database.pin_task(self.creating.task)
+        database.pin_task(self.create.task)
 
     def undo(self):
         maintenance_task = self.create or self.destroy

@@ -41,6 +41,7 @@ class MongoDBSingle(BaseMongoDB):
             'workflow.steps.util.database.CheckIsDown',
             'workflow.steps.mongodb.upgrade.vm.ChangeBinaryTo40',
             'workflow.steps.util.plan.ConfigureForUpgradeOnlyDBConfigFile',
+            'workflow.steps.util.metric_collector.ConfigureTelegraf',
         )
 
     def get_upgrade_steps_final(self):
@@ -76,8 +77,10 @@ class MongoDBSingle(BaseMongoDB):
                 'workflow.steps.util.volume_provider.MountDataVolume',
                 'workflow.steps.util.plan.InitializationForNewInfra',
                 'workflow.steps.util.plan.ConfigureForNewInfra',
+                'workflow.steps.util.metric_collector.ConfigureTelegraf',
                 'workflow.steps.util.database.Start',
                 'workflow.steps.util.database.CheckIsUp',
+                'workflow.steps.util.metric_collector.RestartTelegraf',
                 'workflow.steps.util.infra.UpdateEndpoint',
             )}, {
             'Check DNS': (
@@ -113,10 +116,12 @@ class MongoDBSingle(BaseMongoDB):
                 'workflow.steps.util.volume_provider.UnmountActiveVolume',
                 'workflow.steps.util.volume_provider.MountDataVolumeRestored',
                 'workflow.steps.util.plan.ConfigureRestore',
+                'workflow.steps.util.metric_collector.ConfigureTelegraf',
             )}, {
             'Starting database': (
                 'workflow.steps.util.database.Start',
                 'workflow.steps.util.database.CheckIsUp',
+                'workflow.steps.util.metric_collector.RestartTelegraf',
             )}, {
             'Old data': (
                 'workflow.steps.util.volume_provider.TakeSnapshot',
@@ -140,6 +145,7 @@ class MongoDBReplicaset(BaseMongoDB):
             'workflow.steps.util.volume_provider.MountDataVolume',
             'workflow.steps.util.plan.ConfigureForUpgrade',
             'workflow.steps.util.plan.InitializationForUpgrade',
+            'workflow.steps.util.metric_collector.ConfigureTelegraf',
         )
 
     def get_upgrade_steps_final(self):
@@ -152,8 +158,10 @@ class MongoDBReplicaset(BaseMongoDB):
                 'workflow.steps.util.database.CheckIsDown',
                 'workflow.steps.mongodb.upgrade.vm.ChangeBinaryTo40',
                 'workflow.steps.util.plan.ConfigureForUpgradeOnlyDBConfigFile',
+                'workflow.steps.util.metric_collector.ConfigureTelegraf',
                 'workflow.steps.util.database.Start',
                 'workflow.steps.util.database.CheckIsUp',
+                'workflow.steps.util.metric_collector.RestartTelegraf',
             ),
         }] + [{
             'Setting feature compatibility version 4.0': (
@@ -166,8 +174,10 @@ class MongoDBReplicaset(BaseMongoDB):
             'workflow.steps.util.volume_provider.MountDataVolume',
             'workflow.steps.util.plan.Initialization',
             'workflow.steps.util.plan.Configure',
+            'workflow.steps.util.metric_collector.ConfigureTelegraf',
             'workflow.steps.util.database.Start',
-            'workflow.steps.mongodb.horizontal_elasticity.database.AddInstanceToReplicaSet',
+            'workflow.steps.mongodb.database.AddInstanceToReplicaSet',
+            'workflow.steps.util.metric_collector.RestartTelegraf',
         )
 
     def get_resize_oplog_steps(self):
@@ -181,6 +191,7 @@ class MongoDBReplicaset(BaseMongoDB):
                 'workflow.steps.util.database.Stop',
                 'workflow.steps.util.database.CheckIsDown',
                 'workflow.steps.util.plan.ConfigureForResizeLog',
+                'workflow.steps.util.metric_collector.ConfigureTelegraf',
                 'workflow.steps.util.database.StartForResizeLog',
                 'workflow.steps.util.database.CheckIsUpForResizeLog',
                 'workflow.steps.util.database.ResizeOpLogSize',
@@ -189,6 +200,7 @@ class MongoDBReplicaset(BaseMongoDB):
                 'workflow.steps.util.plan.ConfigureOnlyDBConfigFile',
                 'workflow.steps.util.database.Start',
                 'workflow.steps.util.database.CheckIsUp',
+                'workflow.steps.util.metric_collector.RestartTelegraf',
                 'workflow.steps.util.db_monitor.EnableMonitoring',
                 'workflow.steps.util.zabbix.EnableAlarms',
             )
@@ -227,7 +239,9 @@ class MongoDBReplicaset(BaseMongoDB):
                 'workflow.steps.util.volume_provider.MountDataVolume',
                 'workflow.steps.util.plan.InitializationForNewInfra',
                 'workflow.steps.util.plan.ConfigureForNewInfra',
+                'workflow.steps.util.metric_collector.ConfigureTelegraf',
                 'workflow.steps.util.database.Start',
+                'workflow.steps.util.metric_collector.RestartTelegraf',
             )}, {
             'Check Database': (
                 'workflow.steps.util.plan.StartReplicationFirstNodeNewInfra',
@@ -269,9 +283,11 @@ class MongoDBReplicaset(BaseMongoDB):
                 'workflow.steps.util.disk.CleanData',
                 'workflow.steps.util.disk.CleanDataArbiter',
                 'workflow.steps.util.plan.ConfigureRestore',
+                'workflow.steps.util.metric_collector.ConfigureTelegraf',
             )}, {
             'Starting database': (
                 'workflow.steps.util.database.Start',
+                'workflow.steps.util.metric_collector.RestartTelegraf',
             )}, {
             'Check database': (
                 'workflow.steps.util.database.CheckIsUp',
@@ -287,4 +303,53 @@ class MongoDBReplicaset(BaseMongoDB):
                 'workflow.steps.util.db_monitor.EnableMonitoring',
                 'workflow.steps.util.zabbix.EnableAlarms',
             )
+        }]
+
+    def get_host_migrate_steps_cleaning_up(self):
+        return (
+            'workflow.steps.mongodb.database.RemoveInstanceFromReplicaSet',
+            'workflow.steps.util.volume_provider.DestroyOldEnvironment',
+            'workflow.steps.util.host_provider.DestroyVirtualMachineMigrate',
+        )
+
+    def get_base_host_migrate_steps(self):
+        return (
+            'workflow.steps.util.vm.ChangeMaster',
+            'workflow.steps.util.database.CheckIfSwitchMaster',
+            'workflow.steps.util.host_provider.CreateVirtualMachineMigrate',
+            'workflow.steps.util.volume_provider.NewVolume',
+            'workflow.steps.util.vm.WaitingBeReady',
+            'workflow.steps.util.vm.UpdateOSDescription',
+            'workflow.steps.util.volume_provider.MountDataVolume',
+            'workflow.steps.util.plan.Initialization',
+            'workflow.steps.util.plan.Configure',
+            'workflow.steps.util.database.Start',
+            'workflow.steps.util.database.CheckIsUp',
+            'workflow.steps.util.vm.CheckAccessToMaster',
+            'workflow.steps.util.vm.CheckAccessFromMaster',
+            'workflow.steps.util.acl.ReplicateAclsMigrate',
+            'workflow.steps.mongodb.database.AddInstanceToReplicaSet',
+            'workflow.steps.util.database.WaitForReplication',
+            'workflow.steps.mongodb.database.SetNotEligible',
+            'workflow.steps.util.metric_collector.ConfigureTelegraf',
+            'workflow.steps.util.metric_collector.RestartTelegraf',
+            'workflow.steps.util.zabbix.DestroyAlarms',
+            'workflow.steps.util.dns.ChangeEndpoint',
+            'workflow.steps.util.dns.CheckIsReady',
+            'workflow.steps.util.zabbix.CreateAlarms',
+            'workflow.steps.util.disk.ChangeSnapshotOwner',
+        )
+
+    def get_host_migrate_steps(self):
+        return [{
+            'Migrating':
+                self.get_base_host_migrate_steps() +
+                self.get_host_migrate_steps_cleaning_up()
+        }]
+
+    def get_database_migrate_steps(self):
+        return [{
+            'Migrating': self.get_base_host_migrate_steps()
+        }, {
+            'Cleaning up': self.get_host_migrate_steps_cleaning_up()
         }]
