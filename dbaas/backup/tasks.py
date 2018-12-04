@@ -264,11 +264,7 @@ def make_databases_backup(self):
     return
 
 
-<<<<<<< HEAD
-def remove_snapshot_backup(snapshot, provider=None, force=False):
-=======
 def remove_snapshot_backup(snapshot, provider=None, force=0):
->>>>>>> vm-snapshot
     snapshots = snapshot.group.backups.all() if snapshot.group else [snapshot]
     for snapshot in snapshots:
 
