@@ -56,6 +56,44 @@
         update_engines: function(engines) {
             this.filter_engines(engines);
         },
+        update_replication_topology: function(){
+            this.filter_replication_topology()
+        },
+        filter_replication_topology: function(engine_id){
+            engine_id = engine_id || $("#id_engine").val() || "none";
+           if(engine_id !== "none"){
+                var engine_selector = document.getElementById("id_engine");
+                var self = this;
+                $.ajax({
+                    type: "GET",
+                    dataType: "json",
+                    url: "/physical/topology_by_eng/" + engine_id + "/"
+                }).done(function (response) {
+                    if(response.topology.length !== 0){
+                        response.topology.push("");
+                        var options2ShowSelector = response.topology.map(function(id) {
+                          return "[value='" + id + "']";
+                        }).join(",");
+                        var $engineOptions = $("#id_replication_topology option");
+                        $engineOptions.hide();
+                        $engineOptions.filter(options2ShowSelector).show();
+                        var selectedId = parseInt($engineOptions.filter(':selected').val(), 10);
+                        if (response.engines.indexOf(selectedId) === -1) {
+                          $engineOptions.filter("[value='']").eq(0).attr('selected', 'selected');
+                          self.filter_plans('none');
+                        }
+                    }
+                    else{
+                        engine_selector.innerHTML = '<option selected="selected">' +
+                                                    'This environment has no active plans</option>';
+                    }
+                });
+                $(document.getElementsByClassName("field-replication_topology")[0]).fadeIn("slow");
+            }
+            else{
+                $(document.getElementsByClassName("field-replication_topology")[0]).fadeOut("slow");
+            }
+        },
         filter_plans: function(engine_id) {
             var environment_id = $("#id_environment").val() || "none";
             engine_id = engine_id || $("#id_engine").val() || "none";
@@ -117,6 +155,12 @@
             field_engine.style.display = "none";
         }
 
+        field_replication_topology = document.getElementsByClassName("field-replication_topology");
+        if(field_replication_topology.length !== 0){
+            field_replication_topology = field_replication_topology[0];
+            field_replication_topology.style.display = "none";
+        }
+
         //Saving all engines before changing it
         engine_selector = document.getElementById("id_engine");
         if(engine_selector !== null){
@@ -135,8 +179,13 @@
         });
         $("#id_environment").change();
 
+        $("#id_replication_topology").on("change", function() {
+            database.update_replication_topology();
+        });
+        $("#id_replication_topology").change();
+
         $("#id_engine").on("change", function() {
-            database.update_components();
+            database.update_replication_topology();
         });
         $("#id_engine").change();
 

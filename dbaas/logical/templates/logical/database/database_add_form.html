@@ -65,7 +65,7 @@
   django.jQuery(document).ready(function($) {
 
 
-    $("#choose_plan_new_db").live("click", function(event){ 
+    $("#choose_plan_new_db").live("click", function(event){
         var plan_id = $(event.target).data().planId;
         $("#id_create_database_btn_modal").attr("data-plan-id", plan_id);
         $("#plan-type").val(plan_id);
