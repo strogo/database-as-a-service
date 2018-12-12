@@ -6,7 +6,7 @@ from django.forms import models
 from django import forms
 from util import get_replication_topology_instance
 from drivers.factory import DriverFactory
-from physical.models import Plan, Environment, Engine
+from physical.models import Plan, Environment, Engine, Offering, ReplicationTopology
 from logical.forms.fields import AdvancedModelChoiceField
 from logical.models import Database, Project
 from logical.validators import database_name_evironment_constraint
@@ -22,17 +22,20 @@ class DatabaseForm(models.ModelForm):
         required=False, widget=forms.RadioSelect,
         empty_label=None
     )
+    replication_topology = forms.ModelChoiceField(queryset=ReplicationTopology.objects)
 
     class Meta:
         model = Database
         fields = [
-            'name', 'description', 'project', 'environment', 'engine', 'team',
+            'name', 'description', 'team', 'project', 'environment', 'engine',
+            'replication_topology',
             'subscribe_to_email_events', 'is_in_quarantine', 'plan'
         ]
 
     def __init__(self, *args, **kwargs):
         super(DatabaseForm, self).__init__(*args, **kwargs)
         self.fields['is_in_quarantine'].widget = forms.HiddenInput()
+        # self.fields['oferta'].widget = forms.HiddenInput()
 
     def _validate_description(self, cleaned_data):
         if 'description' in cleaned_data:
