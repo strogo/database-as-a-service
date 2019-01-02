@@ -38,10 +38,22 @@ def offering_by_engine(self, engine_id, environment_id):
     engine = Engine.objects.get(id=engine_id)
     environment = Environment.objects.get(id=environment_id)
     plans = engine.plans.filter(environments=environment, is_active=True
-                                ).values('stronger_offering__cpus',
+                                ).values('stronger_offering_id',
+                                         'stronger_offering__cpus',
                                          'stronger_offering__memory_size_mb',
-                                         'is_ha')
-    return HttpResponse(plans, content_type="application/json")
+                                         'is_ha',
+                                         'replication_topology_id')
+
+
+    plans = [plan for plan in plans]
+    response_json = json.dumps({
+        "plans": plans
+    })
+
+    print("PLANOS: ", response_json)
+    print("TIPO: ", type(response_json))
+    return HttpResponse(response_json, content_type="application/json")
+    # return HttpResponse(plans, content_type="application/json")
 
 
 def plans_details(self):
