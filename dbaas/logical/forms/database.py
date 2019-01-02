@@ -17,25 +17,29 @@ LOG = logging.getLogger(__name__)
 class DatabaseForm(models.ModelForm):
     environment = forms.ModelChoiceField(queryset=Environment.objects)
     engine = forms.ModelChoiceField(queryset=Engine.objects)
-    plan = AdvancedModelChoiceField(
-        queryset=Plan.objects.filter(is_active='True'),
-        required=False, widget=forms.RadioSelect,
-        empty_label=None
-    )
     replication_topology = forms.ModelChoiceField(queryset=ReplicationTopology.objects)
+    offering = forms.ModelChoiceField(queryset=Offering.objects)
+    plan = forms.ModelChoiceField(queryset=Plan.objects)
+
+    TRUE_FALSE_CHOICES = (
+        ('','-------'),
+        (True, 'Sim'),
+        (False, 'Não')
+    )
+    is_ha = forms.ChoiceField(choices = TRUE_FALSE_CHOICES, label="Is HA?",
+                              widget=forms.Select, required=True)
 
     class Meta:
         model = Database
         fields = [
             'name', 'description', 'team', 'project', 'environment', 'engine',
-            'replication_topology',
-            'subscribe_to_email_events', 'is_in_quarantine', 'plan'
+            'replication_topology', 'is_ha', 'plan',
+            'subscribe_to_email_events', 'is_in_quarantine'
         ]
 
     def __init__(self, *args, **kwargs):
         super(DatabaseForm, self).__init__(*args, **kwargs)
         self.fields['is_in_quarantine'].widget = forms.HiddenInput()
-        # self.fields['oferta'].widget = forms.HiddenInput()
 
     def _validate_description(self, cleaned_data):
         if 'description' in cleaned_data:
@@ -155,5 +159,5 @@ class DatabaseDetailsForm(forms.ModelForm):
         super(DatabaseDetailsForm, self).__init__(*args, **kwargs)
 
         self.fields['team'].required = True
-        # self.fields['project'].required = True
+        self.fields['project'].required = True
         self.fields['description'].required = True
