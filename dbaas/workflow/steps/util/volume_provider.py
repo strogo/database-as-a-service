@@ -81,17 +81,24 @@ class VolumeProviderBase(BaseInstanceStep):
 
     def take_snapshot(self):
         url = "{}snapshot/{}".format(self.base_url, self.volume.identifier)
-        response = post(url)
+        data = {
+            "engine": self.engine.name,
+            "db_name": self.database.name,
+            "team_name": self.database.team.name
+        }
+        response = post(url, json=data)
+
         if not response.ok:
             raise IndexError(response.content, response)
         return response.json()
 
-    def delete_snapshot(self, snapshot):
-        url = "{}snapshot/{}".format(self.base_url, snapshot.snapshopt_id)
+    def delete_snapshot(self, snapshot, force):
+        url = "{}snapshot/{}?force={}".format(self.base_url, snapshot.snapshopt_id,
+                                     force)
         response = delete(url)
         if not response.ok:
             raise IndexError(response.content, response)
-        return response.json()
+        return response.json()['removed']
 
     def restore_snapshot(self, snapshot):
         url = "{}snapshot/{}/restore".format(
@@ -361,3 +368,37 @@ class UpdateActiveDisk(VolumeProviderBase):
 
     def undo(self):
         pass
+
+
+class DestroyOldEnvironment(VolumeProviderBase):
+
+    def __unicode__(self):
+        return "Removing old backups and volumes..."
+
+    @property
+    def environment(self):
+        return self.infra.environment
+
+    @property
+    def host(self):
+        return self.instance.hostname
+
+    @property
+    def can_run(self):
+        if not self.instance.is_database:
+            return False
+        if not self.host_migrate.database_migrate:
+            return False
+        return super(DestroyOldEnvironment, self).can_run
+
+    def do(self):
+        from backup.tasks import remove_snapshot_backup
+        for volume in self.host.volumes.all():
+            for snapshot in volume.backups.all():
+                remove_snapshot_backup(snapshot, self)
+            self.add_access(volume, self.host)
+            self.clean_up(volume)
+            self.destroy_volume(volume)
+
+    def undo(self):
+        raise NotImplementedError

@@ -264,7 +264,7 @@ def make_databases_backup(self):
     return
 
 
-def remove_snapshot_backup(snapshot):
+def remove_snapshot_backup(snapshot, provider=None, force=0, msgs=None):
     snapshots = snapshot.group.backups.all() if snapshot.group else [snapshot]
     for snapshot in snapshots:
 
@@ -273,11 +273,16 @@ def remove_snapshot_backup(snapshot):
 
         LOG.info("Removing backup for {}".format(snapshot))
 
-        provider = VolumeProviderBase(snapshot.instance)
-        provider.delete_snapshot(snapshot)
-
-        snapshot.purge_at = datetime.now()
-        snapshot.save()
+        if not provider:
+            provider = VolumeProviderBase(snapshot.instance)
+        removed = provider.delete_snapshot(snapshot, force=force)
+        if removed:
+            snapshot.purge_at = datetime.now()
+            snapshot.save()
+            msg = "Backup {} removed".format(snapshot)
+            LOG.info(msg)
+            if msgs is not None:
+                msgs.append(msg)
 
     return
 
@@ -302,14 +307,12 @@ def remove_database_old_backups(self):
 
     for snapshot in snapshots:
         try:
-            remove_snapshot_backup(snapshot=snapshot)
-            msg = "Backup {} removed".format(snapshot)
-            LOG.info(msg)
+            remove_snapshot_backup(snapshot=snapshot, msgs=msgs)
         except Exception as e:
             msg = "Error removing backup {}. Error: {}".format(snapshot, e)
             status = TaskHistory.STATUS_ERROR
             LOG.error(msg)
-        msgs.append(msg)
+            msgs.append(msg)
     task_history.update_status_for(status, details="\n".join(msgs))
     return
 
@@ -491,7 +494,7 @@ def remove_database_backup(self, task, snapshot):
 
     task_history.add_detail('Removing {}'.format(snapshot))
     try:
-        remove_snapshot_backup(snapshot)
+        remove_snapshot_backup(snapshot, force=1)
     except Exception as e:
         task_history.add_detail('Error: {}'.format(e))
         task.set_status_error('Could not delete backup')

@@ -156,7 +156,7 @@ class Provider(object):
             )
         return True
 
-    def create_host(self, infra, offering, name, team_name, zone=None):
+    def create_host(self, infra, offering, name, team_name, zone=None, database_name=''):
         url = "{}/{}/{}/host/new".format(
             self.credential.endpoint, self.provider, self.environment
         )
@@ -166,7 +166,8 @@ class Provider(object):
             "cpu": offering.cpus,
             "memory": offering.memory_size_mb,
             "group": infra.name,
-            "team_name": team_name
+            "team_name": team_name,
+            "database_name": database_name
         }
         if zone:
             data['zone'] = zone
@@ -349,6 +350,8 @@ class CreateVirtualMachine(HostProviderStep):
 
     @property
     def database_offering(self):
+        if self.host_migrate and self.host_migrate.database_migrate:
+            return self.host_migrate.database_migrate.offering
         if self.has_database:
             return self.infra.offering
         return self.stronger_offering
@@ -370,11 +373,13 @@ class CreateVirtualMachine(HostProviderStep):
         return None
 
     def do(self):
+        task_manager = self.create or self.destroy
         try:
             pair = self.infra.instances.get(dns=self.instance.dns)
         except Instance.DoesNotExist:
             host = self.provider.create_host(
-                self.infra, self.offering, self.vm_name, self.team, self.zone
+                self.infra, self.offering, self.vm_name, self.team, self.zone,
+                database_name=self.database.name if self.database else task_manager.name
             )
             self.update_databaseinfra_last_vm_created()
         else:
@@ -446,8 +451,15 @@ class DestroyVirtualMachineMigrate(HostProviderStep):
     def __unicode__(self):
         return "Destroying virtual machine..."
 
+    @property
+    def environment(self):
+        return self.infra.environment
+
     def do(self):
         host = self.instance.hostname
+        if not host.future_host:
+            return
+
         self.provider.destroy_host(host)
         for instance in host.instances.all():
             instance.hostname = self.host
@@ -455,7 +467,7 @@ class DestroyVirtualMachineMigrate(HostProviderStep):
             instance.save()
 
         migrate = self.host_migrate
-        migrate.host = self.host
+        migrate.host = host.future_host
         migrate.save()
         host.delete()
 
