@@ -46,14 +46,18 @@ def offering_by_engine(self, engine_id, environment_id):
 
 
     plans = [plan for plan in plans]
+
+    for plan in plans:
+        plan_names = engine.plans.filter(environments=environment, is_active=True,
+                                            replication_topology_id=plan['replication_topology_id']
+                                            )
+        plan_names = [plan_name.id for plan_name in plan_names]
+        plan['plans'] = plan_names
+
     response_json = json.dumps({
         "plans": plans
     })
-
-    print("PLANOS: ", response_json)
-    print("TIPO: ", type(response_json))
     return HttpResponse(response_json, content_type="application/json")
-    # return HttpResponse(plans, content_type="application/json")
 
 
 def offerings_by_env(self, environment_id):
